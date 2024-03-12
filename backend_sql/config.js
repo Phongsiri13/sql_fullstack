@@ -1,10 +1,7 @@
 // create policy and protect third party
 var config = {};
 config.express = {};
-
 config.express.port = 3000;
-module.exports = config;
-
 
 config.mysql = {}
 config.mysql.host='localhost';

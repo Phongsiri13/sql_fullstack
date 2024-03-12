@@ -3,6 +3,11 @@ var rightList;
 var options;
 
 var filter_options;
+var searchData;
+
+var amountTable = 0;
+
+var SearchBox = document.querySelector("#KeywordSearch")
 
 //////////////////////////////////// show right options ///////////////////////////////////
 const xhttp = new XMLHttpRequest();
@@ -12,16 +17,13 @@ xhttp.onreadystatechange = function () {
 	if (this.readyState == 4 && this.status == 200) {
 		rightList = JSON.parse(this.responseText).data;
 		// console.log(rightList[0].Patient_Rights)
-
 		options += "<option disabled selected value> -- select an option -- </option>"
 
 		for (let i = 0; i < rightList.length; i++) {
-			// console.log(rightList[i].Patient_Rights)
 			let opt = "<option value=" + rightList[i].Patient_Rights + ">" + rightList[i].Patient_Rights + "</option>"
 			options += opt
 		}
 		filter_options = options.match(/<option[^>]*>(.*?)<\/option>/g);
-		// console.log("ooop", filter_options)
 	}
 }
 //////////////////////////////////// show right options ///////////////////////////////////
@@ -37,10 +39,8 @@ function loadTable() {
 			var trHTML = "";
 			var num = 1;
 			const objects = JSON.parse(this.responseText);
-			// console.log(objects)
+
 			for (var object of objects.data) {
-				var sss = JSON.stringify(object)
-				// console.log(sss)
 				trHTML += "<tr>";
 				trHTML += "<td>" + num + "</td>";
 				trHTML += "<td>" + object["HN"] + "</td>";
@@ -63,8 +63,8 @@ function loadTable() {
 				dele.className = 'btn text-danger bi bi-trash3-fill'
 
 				edits.setAttribute('onclick', `showEditbox(${JSON.stringify(object)})`);
+				dele.setAttribute('onclick', `patientDelete('${object['HN']}')`)
 
-				// edits.innerText = "dsadsa"
 				box_td.appendChild(edits)
 				box_td.appendChild(dele)
 
@@ -72,8 +72,13 @@ function loadTable() {
 				trHTML += "</tr>";
 
 				lastestHN = object["HN"];
-				document.getElementById("patientTable").innerHTML = trHTML;
+				const b = document.getElementById("patientTable");
+				b.innerHTML = trHTML
+				searchData = trHTML
+				amountTable = b.rows.length
 			}
+			console.log("amount:", amountTable)
+			SearchBox.value = null
 		}
 	};
 }
@@ -182,7 +187,7 @@ function createNewPatient() {
 
 	}));
 	xhttp.onreadystatechange = function () {
-		if (this.readyState == 4 && this.status == 200) {
+		if (this.readyState == 4 && this.status == 201) {
 			Swal.fire(
 				'Good job!',
 				'เพิ่มข้อมูลผู้ป่วยสำเร็จ',
@@ -251,14 +256,14 @@ function updateMatch(right_word) {
 }
 
 async function showEditbox(obj_data) {
-	console.log(obj_data['HN'])
+	// console.log(obj_data['HN'])
 	// console.log(obj_data.Patient_Rights_1)
 
 	var formValues = await Swal.fire({
 		title: 'เพิ่มข้อมูลผู้ป่วย',
 		html:
 			'<div class="mb-3"><label for="HN" class="form-label float-start">HN</label>' +
-			'<input class="form-control" id="HN" placeholder="HN" value="' +  obj_data['HN'] + '" disabled></div>' +
+			'<input class="form-control" id="HN" placeholder="HN" value="' + obj_data['HN'] + '" disabled></div>' +
 
 			'<div class="mb-3"><label for="Name" class="form-label float-start">ชื่อ-สกุลผู้ป่วย</label>' +
 			'<input class="form-control" id="Name" placeholder="ชื่อ สกุล" value="' + obj_data['Name'] + '" ></div>' +
@@ -304,16 +309,15 @@ async function showEditbox(obj_data) {
 		// Swal.fire(JSON.stringify(formValues));
 		// update specific
 		// console.log(JSON.stringify(formValues))
-		console.log(formValues.value)
+		// console.log(formValues.value)
 		// console.log("HN1:",formValues.value.id, "HN2:",obj_data.HN)
 
 		var data = formValues.value
 
 		if (data.id == obj_data.HN) {
-
 			// form detect
-			if(data.Phone){
-				if(data.Phone>= 10){
+			if (data.Phone) {
+				if (data.Phone >= 10) {
 					const phoneNumber = data.Phone;
 					const formattedPhoneNumber = phoneNumber.slice(0, 3) + "-" + phoneNumber.slice(3, 6) + "-" + phoneNumber.slice(6);
 					data['Phone'] = formattedPhoneNumber
@@ -328,19 +332,18 @@ async function showEditbox(obj_data) {
 
 			xhttp.onreadystatechange = async function () {
 				if (this.readyState == 4 && this.status == 200) {
+					// console.log('Content-Type:', this.getResponseHeader('Content-Type')); // Log Content-Type header
+					// console.log(this.getResponseHeader('Content-Type').includes('application/json'))
 					const objects = JSON.parse(this.responseText);
-					console.log(objects)
 					// error success
 					var ud = await Swal.fire({
 						icon: `${objects.status == 1 ? 'success' : 'error'}`,
 						title: `${objects.message}`,
 					})
-
-					console.log(ud)
-					if (ud.isConfirmed) {
-						loadTable();
-					}
-
+					// console.log(ud)
+					if (ud.isConfirmed){
+						loadTable()
+					};
 				}
 			}
 
@@ -353,4 +356,83 @@ async function showEditbox(obj_data) {
 			})
 		}
 	}
+}
+
+function loadQueryTable(event) {
+	const tableStructure = document.getElementById("patientTable")
+	// console.log("m:",tableStructure.rows.length)
+	// console.log("searchData:", searchData.length)
+	tableStructure.innerHTML = "";
+	tableStructure.innerHTML += searchData
+
+	// data matching text
+	var dataMatch = []
+
+	for (let ii = 0; ii < amountTable; ii++) {
+		var secondRow = tableStructure.rows[ii];
+		var cellsOfSecondRow = secondRow.cells;
+
+		for (let i = 0; i < cellsOfSecondRow.length; i++) {
+			// Access the value of each cell using the textContent property
+			const cellValue = cellsOfSecondRow[i].textContent;
+			// FOR searching includes
+			// console.log(cellValue.includes(event.target.value))
+
+			// FOR searching to match
+			// cellValue == event.target.value & cellValue != ""
+			if (cellValue == event.target.value) {
+				// console.log("cell:", cellValue)
+				console.log("match:", cellValue)
+				dataMatch.push(secondRow)
+				break
+			}
+			// console.log(cellValue);
+		}
+	}
+
+	if(dataMatch.length > 0){
+		if(parseInt(event.target.value.length) > 0){
+			if(dataMatch.length > 0){
+				var cc = document.getElementById("patientTable")
+				cc.innerHTML = "";
+				for(let t in dataMatch){
+					// console.log('t:',dataMatch[t].outerHTML)
+					cc.appendChild(dataMatch[t])
+				}
+			}
+		}
+	}else{
+		var cc = document.getElementById("patientTable")
+		cc.innerHTML = "NOT FOUND";
+	}
+
+	if(parseInt(event.target.value.length) == 0){
+		tableStructure.innerHTML = searchData
+	}
+
+
+
+	// test manual
+	// trHTML += "<tr>";
+	// trHTML += "<td>" + dataMatch[0].cells[0].textContent + "</td>";
+	// trHTML += "<td>" + dataMatch[0].cells[1].textContent + "</td>";
+	// trHTML += "<td>" + dataMatch[0].cells[2].textContent + "</td>";
+	// trHTML += "<td>" + dataMatch[0].cells[3].textContent + "</td>";
+	// trHTML += "<td>" + dataMatch[0].cells[4].textContent + "</td>";
+	// trHTML += "<td>" + dataMatch[0].cells[5].textContent + "</td>";
+	// trHTML += "<td>" + dataMatch[0].cells[6].textContent + "</td>";
+	// trHTML += "<td>" + dataMatch[0].cells[7].textContent + "</td>";
+	// trHTML += "<td>" + dataMatch[0].cells[8].textContent + "</td>";
+	// trHTML += "<td>" + dataMatch[0].cells[9].tagName + "</td>";
+	// trHTML += "<td>" + dataMatch[0].cells[10] + "</td>";
+	// trHTML += "/tr"
+
+	// var cc = document.getElementById("patientTable")
+
+	// cc.innerHTML = "";
+	// cc.appendChild(dataMatch[0])
+
+	// if (parseInt(a.rows.length) > 0) {
+	// 	console.log(event.target.value)
+	// }
 }

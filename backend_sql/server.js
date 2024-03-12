@@ -28,11 +28,18 @@ con.connect((error) => {
     console.log('Connected to MySQL database successfully');
 });
 
+// app.use((req, res, next) => {
+//     // console.log(req.rawHeaders)
+//     console.log(`Incoming request: ${req.method} ${req.url}`);
+//     next();
+// });
+
 // 2 command there are in server 1.req , 2.res -> ส่งข้อมูล
 
 app.get('/', (req, res) => {
     res.send("Hello World!")
 })
+
 
 app.get('/rights', async (req, res) => {
     try {
@@ -95,13 +102,13 @@ app.post('/patients/create', async (req, res) => {
     const insertSQL = "INSERT INTO patients (HN, Name, Patient_Rights_1, Patient_Rights_2, Patient_Rights_3, Chronic_Disease, Address, Phone) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
     try {
-        await con.query(insertSQL, [patient.HN, patient.name, patient.right1, patient.right2, patient.right3, patient.chronic, patient.address, patient.phone], function (err, results) {
+        con.query(insertSQL, [patient.HN, patient.Name, patient.Right1, patient.Right2, patient.Right3, patient.Chronic, patient.Address, patient.Phone], function (err, results) {
             if (err) {
                 console.error('Error executing query:', err);
                 res.status(500).send({ error: 'An error occurred while creating the patient record' });
                 return;
             }
-            console.log(patient.HN, patient.name, " is created.");
+            console.log(patient.HN, patient.Name, " is created.");
             res.status(201).send({ message: 'Patient created successfully' });
         });
     } catch (err) {
@@ -113,7 +120,7 @@ app.post('/patients/create', async (req, res) => {
 app.put('/patients/update', async (req, res) => {
     const patient = req.body;
     const patientID = patient.id;
-    // const updateSQL = "UPDATE patients SET Name =?, SET Chronic_Disease =?, Address=?, Phone=?, Patient_Rights_1 =?, Patient_Rights_2 =?, Patient_Rights_3 =?  WHERE HN = ?";
+    console.log(patient)
     const updateSQL = `
     UPDATE patients
     SET
@@ -125,44 +132,46 @@ app.put('/patients/update', async (req, res) => {
         Address = ?,
         Phone = ?
         WHERE HN = ?
-`;
-    // let data = null;
-
-    // await con.query('SELECT * FROM patients', (error, results, fields) => {
-    //     if (error) {
-    //         console.error('Error executing query:', error);
-    //         data = { "data": results, "status": 0 };
-    //     } else {
-    //         data = { "data": results, "status": 1 };
-    //     }
-    //     // Move console.log inside the callback function
-    //     console.log(data);
-    // });
-
-    // if(data.status == 1) {
-    //     console.log(data)
-    // }
-    // console.log(patient)
-
-    // res.status(200).send({ message: 'Patient updated successfully' });
-
+    `;
     try {
-        await con.query(updateSQL, [patient.name, patient.right1 || null, patient.right2 || null, patient.right3 || null,patient.Chronic,patient.Address, patient.Phone, patientID], function (err, results) {
+        await con.query(updateSQL, [patient.name, patient.right1 || null, patient.right2 || null, patient.right3 || null, patient.Chronic, patient.Address, patient.Phone, patientID], function (err, results) {
             if (err) {
                 console.error('Error executing query:', err);
                 // Handle error response
-                res.status(200).send({ message: 'ไม่สามารถแก้ไขข้อมูลได้', status:0});
+                res.status(200).send({ message: 'ไม่สามารถแก้ไขข้อมูลได้', status: 0 });
             }
             console.log('Patient with ID', patientID, 'is updated.');
             console.log(patient)
-            res.status(200).send({ message: 'Patient updated successfully', status:1});
+            res.setHeader('Content-Type', 'text/plain');
+            // res.setHeader('Content-Type', 'application/json');
+            res.status(200).send({ message: 'Patient updated successfully', status: 1 });
         });
     } catch (error) {
         console.error('Error executing query:', err);
-        res.send({ error: 'An error occurred while processing the request',status:0 });
+        res.send({ error: 'An error occurred while processing the request', status: 0 });
     }
-
 })
+
+app.delete("/patients/delete/:Id", async(req,res)=>{
+    var deleteSQL = "DELETE FROM patients WHERE HN=?;"
+    const patient = req.params.Id
+    console.log(patient)
+    try {
+        await con.query(deleteSQL, [patient], function (err, results) {
+            if (err) {
+                console.error('Error executing query:', err);
+                // Handle error response
+                res.status(200).send({ message: 'ไม่สามารถแก้ไขข้อมูลได้'});
+            }
+            console.log('Patient with ID', patient, 'is deleted.');
+            // console.log(patient)
+            res.status(200).send({ message: 'Patient deleted successfully'});
+        });
+    } catch (error) {
+        console.error('Error executing query:', err);
+        res.send({ error: 'An error occurred while processing the request', status: 0 });
+    }
+});
 
 // Middleware to handle 404 errors
 app.use((req, res, next) => {
